@@ -325,7 +325,7 @@ const COURSES=[
  {n:'Ice Comet Technical',d:'Twisty technical · kinks · narrow ice shelf',th:{sky:['#020812','#0a2a3a'],neb:['#7af0ff','#ffffff','#3a6aff'],road:'#0a1a24',grid:'#4ac0e0',e1:'#c8faff',e2:'#3a9aff',fog:0x0a2030,ea:0xbaf6ff,eb:0x3a8aff},decor:'ice',
   pts:[[0,0,0],[300,-50,10],[460,50,20],[410,210,22],[560,310,30],[760,260,30],[870,410,20],[720,560,10],[460,510,12],[300,660,20],[100,610,20],[0,450,10],[-160,350,0],[-110,150,0]],wv:[[5,.16,1]]}];
 COURSES.forEach(c=>{c.loops=[];c.jumps=[];c.tubes=[];c.R=700});
-const N=1600,W=13;const Wd=new Float32Array(N).fill(13);let trackCen=new V3(),cpIdx=[],bridgeMat=null,P=[],T=[],Rt=[],Up=[],L=1,trackG=null,gaps=[],walled=new Uint8Array(N),pads=[],roadMap=null,animated=[],course=0;
+const N=1600,W=22;const Wd=new Float32Array(N).fill(22);let trackCen=new V3(),cpIdx=[],bridgeMat=null,P=[],T=[],Rt=[],Up=[],L=1,trackG=null,gaps=[],walled=new Uint8Array(N),pads=[],roadMap=null,animated=[],course=0;
 function genPoints(c){return c.pts.map(p=>new V3(p[0]*1.25,p[2],p[1]*1.25))}
 function frames(){T=[];Up=[];Rt=[];for(let i=0;i<N;i++)T.push(P[(i+1)%N].clone().sub(P[(i-1+N)%N]).normalize());
  let u=new V3(0,1,0);u.addScaledVector(T[0],-u.dot(T[0])).normalize();Up.push(u.clone());
@@ -341,7 +341,7 @@ const orient=(obj,i,o=0,h=0,flat=false)=>{obj.position.copy(P[i]).addScaledVecto
 function disposeG(o){o.traverse(m=>{if(m.geometry)m.geometry.dispose();if(m.material){(Array.isArray(m.material)?m.material:[m.material]).forEach(x=>{if(x.map&&x.map!==dotTex)x.map.dispose();x.dispose()})}})}
 function loadCourse(ci){course=ci;const c=COURSES[ci],th=c.th;if(trackG){scene.remove(trackG);disposeG(trackG)}trackG=new THREE.Group();scene.add(trackG);animated=[];
  const curve=new THREE.CatmullRomCurve3(genPoints(c),true,'centripetal');curve.arcLengthDivisions=3000;L=curve.getLength();P=[];for(let i=0;i<N;i++)P.push(curve.getPointAt(i/N));trackCen=new V3();P.forEach(p=>trackCen.add(p));trackCen.divideScalar(N);frames();
- gaps=[];for(let i=0;i<N;i++){let w=1;for(const [f,a,ph] of c.wv)w+=a*Math.sin(f*i/N*Math.PI*2+ph);Wd[i]=W*w}{const tmp=Float32Array.from(Wd);for(let i=0;i<N;i++){let a=0;for(let k=-40;k<=40;k++)a+=tmp[(i+k+N)%N];Wd[i]=a/81}}walled.fill(0);
+ gaps=[];for(let i=0;i<N;i++){let w=1;for(const [f,a,ph] of c.wv)w+=a*Math.sin(f*i/N*Math.PI*2+ph);Wd[i]=W*w}{const tmp=Float32Array.from(Wd);for(let i=0;i<N;i++){let a=0;for(let k=-40;k<=40;k++)a+=tmp[(i+k+N)%N];Wd[i]=Math.max(16,a/81)}}walled.fill(0);
  for(const f of c.loops){const ci2=Math.floor(f*N);for(let k=-90;k<90;k++)walled[(ci2+k+N)%N]=1}
  // find exact loop index ranges by large up deviation instead
 
@@ -392,7 +392,7 @@ function loadCourse(ci){course=ci;const c=COURSES[ci],th=c.th;if(trackG){scene.r
  // boost pads
  pads=[];const padTex=canvasTex(64,128,(g)=>{g.fillStyle='rgba(0,0,0,0)';g.clearRect(0,0,64,128);g.fillStyle='#fff';for(const y of [10,50,90]){g.beginPath();g.moveTo(4,y+30);g.lineTo(32,y);g.lineTo(60,y+30);g.lineTo(60,y+40);g.lineTo(32,y+12);g.lineTo(4,y+40);g.fill()}});
  const padMat=new THREE.MeshBasicMaterial({map:padTex,color:new THREE.Color(0x00ff99).multiplyScalar(2),transparent:true,side:2,depthWrite:false});animated.push({pad:padMat});
- for(let k=0;k<4;k++){let i=Math.floor((k*2+.5)/8*N);while(walled[i]||inGap(i)||[...gaps].some(g=>Math.abs(g[0]-i)<40))i=(i+20)%N;const o=[-6,5,0,-5,6,-3,3,0][k];pads.push({i,o});
+ for(let k=0;k<4;k++){let i=Math.floor((k*2+.5)/8*N);while(walled[i]||inGap(i)||[...gaps].some(g=>Math.abs(g[0]-i)<40))i=(i+20)%N;const o=[-10,8,0,-8,10,-5,5,0][k];pads.push({i,o});
   const m=new THREE.Mesh(new THREE.PlaneGeometry(6,9),padMat);orient(m,i,o,.08,true);trackG.add(m)}
  decorate(c);
  cam.position.set(0,400,800)}
@@ -449,9 +449,9 @@ const nCars=()=>quality==='HIGH'?12:8;
 function setupRace(){carsG.children.slice().forEach(m=>{carsG.remove(m);disposeG(m)});cars=[];const n=nCars();let pool=[];while(pool.length<n-1)pool.push(...CARS.map((c,i)=>i).filter(i=>i!==player).sort(()=>Math.random()-.5));pool=pool.slice(0,n-1);
  const D=DIFF[diff];
  [player,...pool].forEach((ci,k)=>{const sp=CARS[ci];const m=buildCar(sp,k>0);carsG.add(m);if(k===0){const spt=new THREE.SpotLight(0xddeeff,quality==='HIGH'?80:0,60,.5,.6,1.2);spt.position.set(0,.8,-2.6);spt.target.position.set(0,0,-20);m.add(spt);m.add(spt.target);const pl=new THREE.PointLight(0xff2040,quality==='HIGH'?6:0,8);pl.position.set(0,.8,4);m.add(pl)}
-  cars.push({spec:sp,st:statsOf(sp),mesh:m,ai:k>0,s:0,x:0,v:0,lat:0,yaw:0,lap:0,boost:0,fall:0,fy:0,air:0,done:false,time:0,lineOff:rnd(-7,7),skill:D.sk*(.94+Math.random()*.1),lapStart:0,meter:1,charges:1,gcd:2,hook:null,draft:0,cp:0,sPrev:0,hookedBy:0,aiB:false})});
+  cars.push({spec:sp,st:statsOf(sp),mesh:m,ai:k>0,s:0,x:0,v:0,lat:0,yaw:0,lap:0,boost:0,fall:0,fy:0,air:0,done:false,time:0,lineOff:rnd(-12,12),skill:D.sk*(.94+Math.random()*.1),lapStart:0,meter:1,charges:1,gcd:2,hook:null,draft:0,cp:0,sPrev:0,hookedBy:0,aiB:false})});
  const slots=cars.map((c,i)=>i).slice(1);const pSlot=Math.min(n-1,Math.floor(n*.55));slots.splice(pSlot,0,0);
- slots.forEach((ci,g)=>{const c=cars[ci];c.s=L-10-g*8.5;c.x=g%2?5:-5;c.lap=-1;c.sPrev=c.s});finishOrder=[];raceT=0;lastLap=0;grapples.length=0;
+ slots.forEach((ci,g)=>{const c=cars[ci];c.s=L-10-g*8.5;c.x=g%2?7:-7;c.lap=-1;c.sPrev=c.s});finishOrder=[];raceT=0;lastLap=0;grapples.length=0;
  bestSplits=JSON.parse(localStorage['ngpBS'+course]||'null')||[];bestLap=bestSplits[3]||Infinity;
  tutOn=!localStorage.ngpTut;tutStage=0;hintT=0}
 function idxOf(s){return((Math.floor(s/L*N)%N)+N)%N}
@@ -465,7 +465,7 @@ function spark(pos,n,col){for(let i=0;i<n;i++)emit(pos,new V3().randomDirection(
 const sparkCol=new THREE.Color(2,1.6,.6),grapples=[];
 const ord=n=>n+(['th','st','nd','rd'][(n%100-20)%10]||['th','st','nd','rd'][n%100]||'th');
 function hint(t,dur=4){$('hint').innerHTML=t;$('hint').classList.remove('hide');hintT=dur}
-function findTarget(c){let best=null,bd=1e9;for(const o of cars){if(o===c||o.done&&o!==cars[0])continue;const ds=(o.s-c.s+L)%L;if(ds<7||ds>80)continue;if(Math.abs(o.x-c.x)>4+ds*.3)continue;if(ds<bd){bd=ds;best=o}}return best}
+function findTarget(c){let best=null,bd=1e9;for(const o of cars){if(o===c||o.done&&o!==cars[0])continue;const ds=(o.s-c.s+L)%L;if(ds<7||ds>95)continue;if(Math.abs(o.x-c.x)>5+ds*.36)continue;if(ds<bd){bd=ds;best=o}}return best}
 function fireGrapple(c,t){t=t||findTarget(c);c.gcd=.5;if(!t){if(!c.ai)tone(260,.15,'square',.12,undefined,undefined,120);return false}
  c.charges-=1;c.hook={t,time:0};t.hookedBy++;const me=cars[0];
  if(c===me||t===me){tone(1400,.3,'sawtooth',.22,undefined,undefined,250);noise(.3,.35,4000,undefined,undefined,'highpass');shake=Math.max(shake,.5);if(c===me)camKick=1}
@@ -483,8 +483,8 @@ function update(dt){
   if(!c.ai){if(state==='finish'||c.done)c.ai=true;else{steer=(key.ArrowLeft||key.a||tb.bl?1:0)-(key.ArrowRight||key.d||tb.br?1:0);if(ctrlMode==='TILT'&&!steer)steer=tiltSteer(dt);gas=key.ArrowUp||key.w||tb.bg?1:0;brake=key.ArrowDown||key.s||tb.bb?1:0;boostHeld=!!(key.Shift||tb.bo);hookBtn=!!(key[' ']||tb.bh);
    if(simIn){steer=simIn.st;gas=simIn.g;brake=0;boostHeld=!!simIn.b;hookBtn=!!simIn.h}c.brk=brake}}
   const i=idxOf(c.s),lim=Wd[i]-1.3;
-  if(c.ai){const look=c.s+18+c.v*.5,k=curvAt(look);const wl=Wd[i]-4.5;const target=THREE.MathUtils.clamp(-k*110,-wl,wl)+c.lineOff*(1-Math.min(1,Math.abs(k)*18));
-   for(const o of cars)if(o!==c){const d=(o.s-c.s+L)%L;if(d<16&&Math.abs(o.x-c.x)<3.5)c.lineOff+=(c.x>o.x?1:-1)*dt*7;
+  if(c.ai){const look=c.s+18+c.v*.5,k=curvAt(look);const wl=Wd[i]-4.5;const target=THREE.MathUtils.clamp(-k*180,-wl,wl)+c.lineOff*(1-Math.min(1,Math.abs(k)*18));
+   for(const o of cars)if(o!==c){const d=(o.s-c.s+L)%L;if(d<16&&Math.abs(o.x-c.x)<3.8)c.lineOff+=(c.x>o.x?1:-1)*dt*9;
     if(o===me&&D.ag>0){const back=(c.s-o.s+L)%L;if(back<25&&back>4&&Math.random()<D.ag*dt*2)c.lineOff+=(o.x-c.lineOff)*.3}}
    c.lineOff=THREE.MathUtils.clamp(c.lineOff,-wl,wl);
    steer=THREE.MathUtils.clamp((c.x-target)*.25,-1,1);gas=1;if(Math.abs(k)>.07&&c.v>75)gas=.5;
@@ -492,7 +492,7 @@ function update(dt){
    if(racing&&D.gr>0&&!c.hook&&c.charges>=1&&c.gcd<=0&&Math.random()<dt*D.gr*1.5){const t=findTarget(c);if(t&&(t!==me||Math.random()<D.gp))fireGrapple(c,t)}}
   if(!racing){gas=0;brake=0;boostHeld=false;hookBtn=false}
   // draft / slipstream
-  let dr=0;for(const o of cars){if(o===c)continue;const ds=(o.s-c.s+L)%L;if(ds>3&&ds<34&&Math.abs(o.x-c.x)<3.2)dr=Math.max(dr,1-ds/34)}c.draft+=(dr-c.draft)*Math.min(1,dt*5);
+  let dr=0;for(const o of cars){if(o===c)continue;const ds=(o.s-c.s+L)%L;if(ds>3&&ds<36&&Math.abs(o.x-c.x)<3.6)dr=Math.max(dr,1-ds/34)}c.draft+=(dr-c.draft)*Math.min(1,dt*5);
   // boost meter
   const bPress=boostHeld&&!c.bPrev;c.bPrev=boostHeld;if((c.ai?boostHeld:bPress)&&c.meter>=1){c.meter=0;c.boost=Math.max(c.boost,2.2+st.bEff*.5);c.aiB=false;if(!c.ai){flash=1;tone(200,.6,'sawtooth',.22,undefined,undefined,900);noise(.5,.4,900,undefined,undefined,'lowpass')}}c.boosting=c.boost>0;
   c.meter=Math.min(1,c.meter+dt*(.1+(c.drift?.01:0)+c.draft*.015));
@@ -615,5 +615,5 @@ function render(dt){t0+=dt;let sc=scene;
  if(quality==='HIGH'){rpass.scene=sc;composer.render()}else R.render(sc,cam)}
 function loop(now){const dt=Math.min(.05,(now-lastT)/1000);lastT=now;if(state==='race'||state==='count'||state==='finish')update(dt);render(dt);requestAnimationFrame(loop)}
 loadCourse(0);$('loading').remove();toTitle();requestAnimationFrame(loop);
-window.__dbgPts=()=>{pts.visible=false};window.__game={overlap:()=>{let m=1e9,at=0;for(let i=0;i<N;i+=4)for(let j=i+120;j<N;j+=4){if(N-j+i<120)continue;const d=P[i].distanceTo(P[j]);if(d<m){m=d;at=[i,j]}}return [Math.round(m),at]},Wfor:c=>Wd[idxOf(c.s)],len:()=>L,pos:()=>order().indexOf(cars[0])+1,snap:()=>{camSnap=true},hookDemo:()=>{const me=cars[0],t=cars[1];t.s=(me.s+24)%L;t.x=me.x;t.v=me.v=80;fireGrapple(me,t)},W:()=>Wd[idxOf(cars[0].s)],setDiff:d=>{diff=d},smooth:()=>{let m=0;const seg=L/N;for(let i=0;i<N;i++){const a=Up[i].angleTo(Up[(i+1)%N]);m=Math.max(m,a/seg)}return +(m*180/Math.PI).toFixed(2)},setInput:(st,g,b,h)=>{simIn={st,g,b,h}},courseName:()=>COURSES[course].n,zoom:z=>{gZoom=z},step:(n,stop)=>{for(let k=0;k<n;k++){update(1/60);if(stop==='air'&&cars[0].fy>4&&cars[0].air)return k;if(stop==='loop'&&Up[idxOf(cars[0].s)].y<-.8)return k}return -1},skipCount:()=>{cd=4.5},place:w=>{const me=cars[0];let i;if(w==='jump')i=gaps[0][0]-90;else{i=Up.findIndex(u=>u.y<-.5)-160}me.s=((i+N)%N)/N*L;me.v=95;me.x=0;me.lap=0;cars.slice(1).forEach((c,k)=>{c.s=(me.s+40+k*12)%L})},upY:()=>Up[idxOf(cars[0].s)].y,startRace,loadCourse,get cars(){return cars},get state(){return state},garage:()=>$('play').click(),courses:()=>$('gok').click(),pickCourse};
+window.__dbgPts=()=>{pts.visible=false};window.__game={wRange:()=>[Math.min(...Wd),Math.max(...Wd)].map(x=>+x.toFixed(1)),overlap:()=>{let m=1e9,at=0;for(let i=0;i<N;i+=4)for(let j=i+120;j<N;j+=4){if(N-j+i<120)continue;const d=P[i].distanceTo(P[j]);if(d<m){m=d;at=[i,j]}}return [Math.round(m),at]},Wfor:c=>Wd[idxOf(c.s)],len:()=>L,pos:()=>order().indexOf(cars[0])+1,snap:()=>{camSnap=true},hookDemo:()=>{const me=cars[0],t=cars[1];t.s=(me.s+24)%L;t.x=me.x;t.v=me.v=80;fireGrapple(me,t)},W:()=>Wd[idxOf(cars[0].s)],setDiff:d=>{diff=d},smooth:()=>{let m=0;const seg=L/N;for(let i=0;i<N;i++){const a=Up[i].angleTo(Up[(i+1)%N]);m=Math.max(m,a/seg)}return +(m*180/Math.PI).toFixed(2)},setInput:(st,g,b,h)=>{simIn={st,g,b,h}},courseName:()=>COURSES[course].n,zoom:z=>{gZoom=z},step:(n,stop)=>{for(let k=0;k<n;k++){update(1/60);if(stop==='air'&&cars[0].fy>4&&cars[0].air)return k;if(stop==='loop'&&Up[idxOf(cars[0].s)].y<-.8)return k}return -1},skipCount:()=>{cd=4.5},place:w=>{const me=cars[0];let i;if(w==='jump')i=gaps[0][0]-90;else{i=Up.findIndex(u=>u.y<-.5)-160}me.s=((i+N)%N)/N*L;me.v=95;me.x=0;me.lap=0;cars.slice(1).forEach((c,k)=>{c.s=(me.s+40+k*12)%L})},upY:()=>Up[idxOf(cars[0].s)].y,startRace,loadCourse,get cars(){return cars},get state(){return state},garage:()=>$('play').click(),courses:()=>$('gok').click(),pickCourse};
 </script></body></html>
