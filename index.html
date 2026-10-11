@@ -49,6 +49,16 @@ button.alt{border-color:#ff2bd6;color:#ff9bf0;box-shadow:0 0 14px #ff2bd6;font-s
 .hide{display:none!important}
 #loading{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;font-size:22px;color:#0ff;background:#05010f}
 @media (max-height:430px){h1{font-size:44px}.gpanel{padding:6px 12px}.card{padding:5px 8px;font-size:13px}.card small{font-size:10px}#clist{gap:6px}}
+
+.ctl{touch-action:none}
+@media (orientation:landscape){#bl{bottom:max(18px,env(safe-area-inset-bottom));left:max(18px,env(safe-area-inset-left))}#br{left:calc(max(18px,env(safe-area-inset-left)) + 98px)}
+ #bg{right:max(18px,env(safe-area-inset-right))}#bb{right:calc(max(18px,env(safe-area-inset-right)) + 112px)}}
+@media (orientation:portrait){.ctl{width:72px;height:72px;font-size:26px;bottom:max(22px,calc(env(safe-area-inset-bottom) + 8px))}#bg{width:80px;height:80px}
+ #br{left:calc(max(12px,env(safe-area-inset-left)) + 82px)}#bl{left:max(12px,env(safe-area-inset-left))}#bg{right:max(12px,env(safe-area-inset-right))}#bb{right:calc(max(12px,env(safe-area-inset-right)) + 90px)}
+ #clist{grid-template-columns:repeat(2,1fr)}#spd{top:calc(max(10px,env(safe-area-inset-top)) + 40px)}#pause{top:auto;bottom:calc(max(22px,env(safe-area-inset-bottom)) + 90px)}
+ #rotate:not(.hide){display:block!important}.gpanel{min-width:0;width:220px}.arrow{padding:6px 12px}}
+#rotate{display:none;position:fixed;top:calc(env(safe-area-inset-top) + 56px);left:0;right:0;text-align:center;font-size:12px;color:#ff9bf0;pointer-events:none;text-shadow:0 0 6px #000}
+@media (max-height:340px){.ctl{width:70px;height:70px}#bg{width:78px;height:78px}#br{left:calc(max(18px,env(safe-area-inset-left)) + 82px)}#bb{right:calc(max(18px,env(safe-area-inset-right)) + 92px)}h1{font-size:36px}}
 </style>
 <script type="importmap">{"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/"}}</script>
 </head><body>
@@ -60,7 +70,7 @@ button.alt{border-color:#ff2bd6;color:#ff9bf0;box-shadow:0 0 14px #ff2bd6;font-s
 </div>
 <div id="lines"></div>
 <div id="lights"><div></div><div></div><div></div><div></div><div></div></div>
-<div id="msg"></div>
+<div id="msg"></div><div id="rotate" class="hide">↻ Rotate to landscape for the best view</div>
 <div id="title" class="screen dim hide safe">
  <h1>NEON <span>GP</span></h1><div style="color:#ff9bf0;font-weight:700;letter-spacing:3px">ANTI-GRAV FORMULA · DEEP SPACE</div>
  <button id="play" style="font-size:26px;margin-top:10px">▶ PLAY</button>
@@ -89,7 +99,7 @@ import {UnrealBloomPass} from 'three/addons/postprocessing/UnrealBloomPass.js';
 import {OutputPass} from 'three/addons/postprocessing/OutputPass.js';
 import {RoomEnvironment} from 'three/addons/environments/RoomEnvironment.js';
 const $=id=>document.getElementById(id);const V3=THREE.Vector3;const rnd=(a,b)=>a+Math.random()*(b-a);
-const show=(...ids)=>{['title','garage','courses','results','paused','hud'].forEach(i=>$(i).classList.toggle('hide',!ids.includes(i)))};
+const show=(...ids)=>{document.getElementById('rotate')&&document.getElementById('rotate').classList.toggle('hide',!ids.includes('hud'));['title','garage','courses','results','paused','hud'].forEach(i=>$(i).classList.toggle('hide',!ids.includes(i)))};
 // ---------- renderer ----------
 const R=new THREE.WebGLRenderer({antialias:false,powerPreference:'high-performance'});
 R.toneMapping=THREE.ACESFilmicToneMapping;R.toneMappingExposure=0.85;document.body.prepend(R.domElement);
@@ -100,7 +110,9 @@ let quality=localStorage.ngpQ||'HIGH';
 const composer=new EffectComposer(R);const rpass=new RenderPass(scene,cam);composer.addPass(rpass);
 const bloom=new UnrealBloomPass(new THREE.Vector2(256,256),0.55,0.35,0.88);composer.addPass(bloom);composer.addPass(new OutputPass());
 function resize(){const w=innerWidth,h=innerHeight;const pr=quality==='HIGH'?Math.min(devicePixelRatio,1.5):Math.min(devicePixelRatio,1);R.setPixelRatio(pr);R.setSize(w,h);composer.setPixelRatio(pr);composer.setSize(w,h);bloom.resolution.set(w*pr/2,h*pr/2);bloom.setSize(Math.round(w*pr/2),Math.round(h*pr/2));cam.aspect=w/h;cam.updateProjectionMatrix()}
-addEventListener('resize',resize);resize();
+let rzT=0;const onRz=()=>{resize();clearTimeout(rzT);rzT=setTimeout(resize,250);setTimeout(resize,700)};
+addEventListener('resize',onRz);addEventListener('orientationchange',onRz);if(window.visualViewport)visualViewport.addEventListener('resize',onRz);resize();
+document.addEventListener('visibilitychange',()=>{if(document.hidden&&(state==='race'||state==='count'))pause();if(AC){document.hidden?AC.suspend():AC.resume()}});
 ['gesturestart','dblclick','contextmenu'].forEach(e=>document.addEventListener(e,ev=>ev.preventDefault()));
 document.addEventListener('touchmove',e=>e.preventDefault(),{passive:false});
 // ---------- audio ----------
@@ -404,10 +416,10 @@ function render(dt){t0+=dt;let sc=scene;
   const fwd=f.t.clone().applyAxisAngle(f.u,c.yaw*.8),right=new V3().crossVectors(fwd,f.u).normalize();tmpM.makeBasis(right,f.u,fwd.clone().negate());c.mesh.quaternion.setFromRotationMatrix(tmpM);c.mesh.rotateZ(-c.yaw*.4);if(c.air)c.mesh.rotateX(.08);if(c.fall)c.mesh.rotateX(c.fall*2);
   c.mesh.visible=!(c.respawn>0&&Math.floor(t0*12)%2);const fl=c.mesh.userData.flame;fl.scale.set(1,.4+c.v/90+(c.boost>0?1.6:0),1);fl.visible=c.v>1}
  if(state==='title'||state==='courses'){const a=t0*.12,cn=COURSES[course];cam.position.set(Math.cos(a)*cn.R*1.6,320,Math.sin(a)*cn.R*1.6);cam.up.set(0,1,0);cam.lookAt(0,0,0);cam.fov=60;cam.updateProjectionMatrix();camPos.copy(cam.position)}
- else if(cars.length){const me=cars[0],f=frame(me.s);const back=f.p.clone().addScaledVector(f.r,me.x*.85).addScaledVector(f.t,-10).addScaledVector(f.u,3.8+me.fy*.6);
+ else if(cars.length){const me=cars[0],f=frame(me.s);const back=f.p.clone().addScaledVector(f.r,me.x*.85).addScaledVector(f.t,cam.aspect<1?-13:-10).addScaledVector(f.u,(cam.aspect<1?5:3.8)+me.fy*.6);
   camPos.lerp(back,Math.min(1,dt*9));if(camPos.distanceTo(back)>60)camPos.copy(back);cam.position.copy(camPos);camUp.lerp(f.u,Math.min(1,dt*6)).normalize();cam.up.copy(camUp);
   camLook.copy(me.mesh.position).addScaledVector(f.t,8).addScaledVector(f.u,1);cam.lookAt(camLook);
-  const tf=64+me.v/95*16+(me.boost>0?14:0);fov+=(tf-fov)*dt*4;cam.fov=fov;cam.updateProjectionMatrix();
+  const tf=64+me.v/95*16+(me.boost>0?14:0);fov+=(tf-fov)*dt*4;cam.fov=cam.aspect<1?Math.min(100,fov*1.35):fov;cam.updateProjectionMatrix();
   $('lines').style.opacity=me.boost>0?.9:Math.max(0,(me.v-80)/40);
   if(AC&&engGain){engGain.gain.setTargetAtTime(soundOn&&state!=='paused'&&state!=='results'?.12:0,AC.currentTime,.1);eo1.frequency.setTargetAtTime(55+me.v*1.6+(me.boost>0?40:0),AC.currentTime,.05);eo2.frequency.setTargetAtTime(55+me.v*1.6,AC.currentTime,.05);engF.frequency.setTargetAtTime(400+me.v*25,AC.currentTime,.05)}
   const o=order();$('pos').textContent='P'+(o.indexOf(me)+1)+'/6';$('lap').textContent='LAP '+Math.min(TOTAL,Math.max(1,me.lap+1))+'/'+TOTAL;$('time').textContent=fmt(me.done?me.time:raceT);$('best').textContent='BEST '+fmt(bestLap);
