@@ -59,13 +59,14 @@ button.alt{border-color:#ff2bd6;color:#ff9bf0;box-shadow:0 0 14px #ff2bd6;font-s
  #rotate:not(.hide){display:block!important}.gpanel{min-width:0;width:220px}.arrow{padding:6px 12px}}
 #rotate{display:none;position:fixed;top:calc(env(safe-area-inset-top) + 56px);left:0;right:0;text-align:center;font-size:12px;color:#ff9bf0;pointer-events:none;text-shadow:0 0 6px #000}
 @media (max-height:340px){.ctl{width:70px;height:70px}#bg{width:78px;height:78px}#br{left:calc(max(18px,env(safe-area-inset-left)) + 82px)}#bb{right:calc(max(18px,env(safe-area-inset-right)) + 92px)}h1{font-size:36px}}
+body.tilt #bl,body.tilt #br{display:none}
 </style>
 <script type="importmap">{"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/"}}</script>
 </head><body>
 <div id="loading">LOADING NEON GP…</div>
 <div id="hud" class="hide safe"><span class="box" id="lap">LAP 1/3</span><span class="box" id="pos">P6/6</span><span class="box" id="time">0:00.00</span><br><span class="box" id="best" style="margin-top:6px;font-size:12px">BEST –</span>
  <div id="spd">0<small>km/h</small><div id="boostbar"><i></i></div></div>
- <button id="pause">II</button>
+ <button id="pause">II</button><button id="recenter" class="hide" style="position:absolute;top:max(10px,env(safe-area-inset-top));left:calc(50% + 40px);pointer-events:auto;font-size:13px;padding:5px 10px;border-radius:8px;background:rgba(20,0,40,.6);border:1px solid #ff2bd6;color:#ff9bf0;box-shadow:none">⟲ CENTER</button>
  <div class="ctl" id="bl">◀</div><div class="ctl" id="br">▶</div><div class="ctl" id="bb">■</div><div class="ctl" id="bg">▲</div>
 </div>
 <div id="lines"></div>
@@ -75,6 +76,7 @@ button.alt{border-color:#ff2bd6;color:#ff9bf0;box-shadow:0 0 14px #ff2bd6;font-s
  <h1>NEON <span>GP</span></h1><div style="color:#ff9bf0;font-weight:700;letter-spacing:3px">ANTI-GRAV FORMULA · DEEP SPACE</div>
  <button id="play" style="font-size:26px;margin-top:10px">▶ PLAY</button>
  <div class="row"><button class="alt" id="qual">GFX: HIGH</button><button class="alt" id="snd">SOUND: ON</button><button class="alt" id="mus">MUSIC: ON</button></div>
+ <div class="row"><button class="alt" id="ctrl">CONTROLS: BUTTONS</button><button class="alt hide" id="sens">TILT SENS: 1.0</button><button class="alt hide" id="inv">TILT DIR: NORMAL</button></div><div id="tiltmsg" style="font-size:12px;color:#ff9bf0"></div>
  <div style="font-size:12px;color:#aaa;margin-top:6px">Phone: hold ◀ ▶ to steer, ▲ gas, ■ brake · Desktop: arrow keys / WASD</div>
 </div>
 <div id="garage" class="screen hide safe">
@@ -90,7 +92,7 @@ button.alt{border-color:#ff2bd6;color:#ff9bf0;box-shadow:0 0 14px #ff2bd6;font-s
 </div>
 <div id="results" class="screen dim hide safe"><h1 id="rtitle">FINISH</h1><div id="rtable"></div>
  <div class="row"><button id="again">RACE AGAIN</button><button class="alt" id="tocourse">COURSES</button><button class="alt" id="tomenu">MENU</button></div></div>
-<div id="paused" class="screen dim hide safe"><h2>PAUSED</h2><div class="row"><button id="resume">RESUME</button><button class="alt" id="quit">QUIT</button></div></div>
+<div id="paused" class="screen dim hide safe"><h2>PAUSED</h2><div class="row"><button id="resume">RESUME</button><button class="alt" id="recenter2">⟲ RECENTER TILT</button><button class="alt" id="quit">QUIT</button></div></div>
 <script type="module">
 import * as THREE from 'three';
 import {EffectComposer} from 'three/addons/postprocessing/EffectComposer.js';
@@ -355,7 +357,7 @@ function update(dt){
   if(cd>4.6){state='race';tone(880,.5,'square',.3);$('lights').style.display='none';$('msg').textContent='GO!';setTimeout(()=>{if($('msg').textContent==='GO!')$('msg').textContent=''},900)}}
  const racing=state==='race'||state==='finish';if(racing)raceT+=dt;if(state==='paused')return;
  for(const c of cars){let steer=0,gas=0,brake=0;const st=c.st;
-  if(!c.ai){if(state==='finish'||c.done)c.ai=true;else{steer=(key.ArrowLeft||key.a||tb.bl?1:0)-(key.ArrowRight||key.d||tb.br?1:0);gas=key.ArrowUp||key.w||tb.bg?1:0;brake=key.ArrowDown||key.s||tb.bb?1:0;c.brk=brake}}
+  if(!c.ai){if(state==='finish'||c.done)c.ai=true;else{steer=(key.ArrowLeft||key.a||tb.bl?1:0)-(key.ArrowRight||key.d||tb.br?1:0);if(ctrlMode==='TILT'&&!steer)steer=tiltSteer(dt);gas=key.ArrowUp||key.w||tb.bg?1:0;brake=key.ArrowDown||key.s||tb.bb?1:0;c.brk=brake}}
   if(c.ai){const look=c.s+18+c.v*.5,k=curvAt(look);const target=THREE.MathUtils.clamp(-k*110,-8,8)+c.lineOff*(1-Math.min(1,Math.abs(k)*18));
    for(const o of cars)if(o!==c){const d=(o.s-c.s+L)%L;if(d<16&&Math.abs(o.x-c.x)<3.5)c.lineOff+=(c.x>o.x?1:-1)*dt*7}c.lineOff=THREE.MathUtils.clamp(c.lineOff,-8,8);
    steer=THREE.MathUtils.clamp((c.x-target)*.25,-1,1);gas=1;if(Math.abs(k)>.07&&c.v>75)gas=.5}
@@ -401,7 +403,22 @@ $('play').onclick=()=>{state='garage';show('garage');garageShow()};
 $('gback').onclick=toTitle;$('gok').onclick=()=>{state='courses';show('courses');renderCourses()};$('cback').onclick=()=>{state='garage';show('garage');garageShow()};
 $('cgo').onclick=startRace;$('again').onclick=startRace;$('tocourse').onclick=()=>{state='courses';show('courses');renderCourses()};$('tomenu').onclick=toTitle;
 $('prev').onclick=()=>{player=(player+CARS.length-1)%CARS.length;garageShow()};$('next').onclick=()=>{player=(player+1)%CARS.length;garageShow()};
-window.__setQ=q=>{quality=q;resize()};const qlbl=()=>{$('qual').textContent='GFX: '+quality;$('snd').textContent='SOUND: '+(soundOn?'ON':'OFF');$('mus').textContent='MUSIC: '+(musicOn?'ON':'OFF')};qlbl();
+window.__setQ=q=>{quality=q;resize()};let ctrlMode=localStorage.ngpC||'BUTTONS',tiltSens=+(localStorage.ngpTS||1),tiltInv=localStorage.ngpTI==='1',tiltRaw=0,tiltZero=0,tiltVal=0,tiltSeen=false;
+function scrAngle(){return(screen.orientation&&typeof screen.orientation.angle==='number')?screen.orientation.angle:(window.orientation||0)}
+addEventListener('deviceorientation',e=>{if(e.beta==null)return;tiltSeen=true;const a=((scrAngle()%360)+360)%360;tiltRaw=a===90?-e.beta:a===270?e.beta:a===180?e.gamma:-e.gamma});
+function recenter(){tiltZero=tiltRaw;$('tiltmsg').textContent='Tilt centred';setTimeout(()=>$('tiltmsg').textContent='',1500)}
+function applyCtrl(){document.body.classList.toggle('tilt',ctrlMode==='TILT');$('sens').classList.toggle('hide',ctrlMode!=='TILT');$('inv').classList.toggle('hide',ctrlMode!=='TILT');$('recenter').classList.toggle('hide',ctrlMode!=='TILT');$('recenter2').classList.toggle('hide',ctrlMode!=='TILT');
+ $('ctrl').textContent='CONTROLS: '+ctrlMode;$('sens').textContent='TILT SENS: '+tiltSens.toFixed(1);$('inv').textContent='TILT DIR: '+(tiltInv?'INVERTED':'NORMAL');localStorage.ngpC=ctrlMode;localStorage.ngpTS=tiltSens;localStorage.ngpTI=tiltInv?1:0}
+async function enableTilt(){const DOE=window.DeviceOrientationEvent;if(!DOE){ctrlMode='BUTTONS';$('tiltmsg').textContent='Tilt not supported on this device – using buttons';return applyCtrl()}
+ if(typeof DOE.requestPermission==='function'){try{const r=await DOE.requestPermission();if(r!=='granted'){ctrlMode='BUTTONS';$('tiltmsg').textContent='Motion permission denied – using buttons';return applyCtrl()}}catch(e){ctrlMode='BUTTONS';$('tiltmsg').textContent='Motion permission unavailable – using buttons';return applyCtrl()}}
+ ctrlMode='TILT';applyCtrl();$('tiltmsg').textContent='Hold the phone how you will play, then tap ⟲ CENTER any time';setTimeout(()=>{recenter();if(!tiltSeen){ctrlMode='BUTTONS';applyCtrl();$('tiltmsg').textContent='No motion sensor data – using buttons'}},1200)}
+$('ctrl').onclick=()=>{if(ctrlMode==='TILT'){ctrlMode='BUTTONS';applyCtrl()}else enableTilt()};
+$('sens').onclick=()=>{tiltSens=tiltSens>=1.8?0.6:Math.round((tiltSens+.4)*10)/10;applyCtrl()};$('inv').onclick=()=>{tiltInv=!tiltInv;applyCtrl()};
+$('recenter').onclick=recenter;$('recenter2').onclick=recenter;
+if(ctrlMode==='TILT'){ctrlMode='BUTTONS';$('tiltmsg').textContent='Tap CONTROLS to re-enable tilt';}applyCtrl();
+function tiltSteer(dt){let d=(tiltRaw-tiltZero);if(d>180)d-=360;if(d<-180)d+=360;if(tiltInv)d=-d;const dz=3;let v=Math.abs(d)<dz?0:(d-Math.sign(d)*dz)/(22/tiltSens);v=THREE.MathUtils.clamp(v,-1,1);tiltVal+=(v-tiltVal)*Math.min(1,dt*12);return tiltVal}
+window.__tilt=(raw)=>{tiltRaw=raw;tiltSeen=true};
+const qlbl=()=>{$('qual').textContent='GFX: '+quality;$('snd').textContent='SOUND: '+(soundOn?'ON':'OFF');$('mus').textContent='MUSIC: '+(musicOn?'ON':'OFF')};qlbl();
 $('qual').onclick=()=>{quality=quality==='HIGH'?'LOW':'HIGH';localStorage.ngpQ=quality;resize();qlbl();loadCourse(course)};
 $('snd').onclick=()=>{soundOn=!soundOn;localStorage.ngpS=soundOn?1:0;if(sfxGain)sfxGain.gain.value=soundOn?.6:0;qlbl()};
 $('mus').onclick=()=>{musicOn=!musicOn;localStorage.ngpM=musicOn?1:0;if(musGain)musGain.gain.value=musicOn?.22:0;qlbl()};
